@@ -1583,6 +1583,45 @@ PvPScript::PvPScript(char const* name) : ScriptObject(name)
     ScriptRegistry<PvPScript>::AddScript(this);
 }
 
+bool ScriptMgr::UpdateArenaQueue(BattlegroundQueue* q, BattlegroundTypeId type, uint8 bracket, uint8 arena, bool rated) const
+{
+    FOR_SCRIPTS_RET(PvPScript, itr, end, false)
+        if (itr->second->UpdateArenaQueue(q, type, bracket, arena, rated))
+            return true;
+    return false;
+}
+
+bool ScriptMgr::CanEnterArena(Player* player, Battleground* bg) const
+{
+    FOR_SCRIPTS_RET(PvPScript, itr, end, true)
+        if (!itr->second->CanEnterArena(player, bg))
+            return false;
+    return true;
+}
+
+void ScriptMgr::OnArenaQueueRemoved(BattlegroundQueue* q, uint64 guid, GroupQueueInfo const& info, bool abandoned) const
+{
+    FOREACH_SCRIPT(PvPScript)->OnArenaQueueRemoved(q, guid, info, abandoned);
+}
+
+void ScriptMgr::BeforeArenaPlayerLeave(Battleground* bg, uint64 guid, uint32 team) const
+{
+    FOREACH_SCRIPT(PvPScript)->BeforeArenaPlayerLeave(bg, guid, team);
+}
+
+bool ScriptMgr::HandleArenaResult(Battleground* bg, uint32 winner) const
+{
+    FOR_SCRIPTS_RET(PvPScript, itr, end, false)
+        if (itr->second->HandleArenaResult(bg, winner))
+            return true;
+    return false;
+}
+
+void ScriptMgr::OnArenaDestroyed(Battleground* bg) const
+{
+    FOREACH_SCRIPT(PvPScript)->OnArenaDestroyed(bg);
+}
+
 bool ScriptMgr::SelectBGGroups(BattlegroundQueue* q, Battleground* bg, uint8 bracket, uint32 min, uint32 max, bool fill) const
 {
     FOR_SCRIPTS_RET(PvPScript, itr, end, false)

@@ -485,6 +485,8 @@ void WorldSession::HandleBattleFieldPortOpcode(WorldPacket& recvData)
         }
     }
 
+    if (action && bg->isArena() && !sScriptMgr->CanEnterArena(_player, bg))
+        action = 0;
     WorldPacket data;
     if (action)
     {
@@ -530,6 +532,11 @@ void WorldSession::HandleBattleFieldPortOpcode(WorldPacket& recvData)
     }
     else // leave queue
     {
+        if (sBattlegroundMgr->IsCustomArena(ginfo.ArenaType))
+        {
+            sBattlegroundMgr->LeaveQueue(_player, bgQueueTypeId);
+            return;
+        }
         // if player leaves rated arena match before match start, it is counted as he played but he lost
         if (ginfo.IsRated && ginfo.IsInvitedToBGInstanceGUID)
         {
@@ -627,7 +634,9 @@ void WorldSession::HandleBattlefieldStatusOpcode(WorldPacket& /*recvData*/)
 
             uint32 avgTime = bgQueue.GetAverageQueueWaitTime(&ginfo, bracketEntry->GetBracketId());
             // send status in Battleground Queue
-            sBattlegroundMgr->BuildBattlegroundStatusPacket(&data, bg, GetPlayer(), i, STATUS_WAIT_QUEUE, avgTime, _player->GetBattlegroundQueueJoinTime(bgTypeId), arenaType);
+            sBattlegroundMgr->BuildBattlegroundStatusPacket(&data, bg, GetPlayer(), i, STATUS_WAIT_QUEUE, avgTime,
+                _player->GetBattlegroundQueueJoinTime(bgTypeId), arenaType,
+                sBattlegroundMgr->IsCustomArena(arenaType) ? int8(ginfo.IsRated) : -1);
             SendPacket(&data);
         }
     }
@@ -677,6 +686,9 @@ void WorldSession::HandleBattlemasterJoinArena(WorldPacket& recvData)
     if (!grp)
         return;
     if (grp->GetLeaderGUID() != _player->GetGUID())
+        return;
+
+    if (!sScriptMgr->CanJoinBG(_player, grp))
         return;
 
     /*

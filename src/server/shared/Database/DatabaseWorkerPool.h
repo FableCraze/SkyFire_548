@@ -412,13 +412,13 @@ public:
 
     //! Directly executes a collection of one-way SQL operations (can be both adhoc and prepared). The order in which these operations
     //! were appended to the transaction will be respected during execution.
-    void DirectCommitTransaction(SQLTransaction& transaction)
+    bool DirectCommitTransaction(SQLTransaction& transaction)
     {
         T* con = GetFreeConnection();
         if (con->ExecuteTransaction(transaction))
         {
             con->Unlock();      // OK, operation succesful
-            return;
+            return true;
         }
 
         //! Handle MySQL Errno 1213 without extending deadlock to the core itself
@@ -429,7 +429,10 @@ public:
             for (uint8 i = 0; i < loopBreaker; ++i)
             {
                 if (con->ExecuteTransaction(transaction))
-                    break;
+                {
+                    con->Unlock();
+                    return true;
+                }
             }
         }
 
@@ -437,6 +440,7 @@ public:
         transaction->Cleanup();
 
         con->Unlock();
+        return false;
     }
 
     //! Method used to execute prepared statements in a diverse context.

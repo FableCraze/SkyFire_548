@@ -153,6 +153,8 @@ m_PrematureCountDown(false), m_PrematureCountDownTimer(0), m_HonorMode(BGHonorMo
 
 Battleground::~Battleground()
 {
+    if (GetInstanceID() && isArena())
+        sScriptMgr->OnArenaDestroyed(this);
     // remove objects and creatures
     // (this is done automatically in mapmanager update, when the instance is reset after the reset time)
     uint32 size = uint32(BgCreatures.size());
@@ -488,6 +490,8 @@ inline void Battleground::_ProcessJoin(uint32 diff)
         m_Events |= BG_STARTING_EVENT_4;
 
         sScriptMgr->BeforeBGStart(this);
+        if (GetStatus() == STATUS_WAIT_LEAVE)
+            return;
         StartingEventOpenDoors();
 
         SendWarningToAll(StartMessageIds[BG_STARTING_EVENT_FOURTH]);
@@ -717,6 +721,9 @@ void Battleground::UpdateWorldStateForPlayer(uint32 field, uint32 value, Player*
 
 void Battleground::EndBattleground(uint32 winner)
 {
+    if (sBattlegroundMgr->IsCustomArena(GetArenaType()) && GetStatus() == STATUS_WAIT_LEAVE)
+        return;
+    bool customResult = isArena() && sScriptMgr->HandleArenaResult(this, winner);
     RemoveFromBGFreeSlotQueue();
 
     ArenaTeam* winnerArenaTeam = NULL;
@@ -759,7 +766,7 @@ void Battleground::EndBattleground(uint32 winner)
     SetRemainingTime(TIME_AUTOCLOSE_BATTLEGROUND);
 
     // arena rating calculation
-    if (isArena() && isRated())
+    if (!customResult && isArena() && isRated())
     {
         winnerArenaTeam = sArenaTeamMgr->GetArenaTeamById(GetArenaTeamIdForTeam(winner));
         loserArenaTeam = sArenaTeamMgr->GetArenaTeamById(GetArenaTeamIdForTeam(GetOtherTeam(winner)));
@@ -884,7 +891,7 @@ void Battleground::EndBattleground(uint32 winner)
         player->RemoveAura(SPELL_HONORABLE_DEFENDER_60Y);
 
         // Reward winner team
-        if (team == winner)
+        if (!customResult && team == winner)
         {
             if (IsRandom() || BattlegroundMgr::IsBGWeekend(GetTypeID()))
             {
@@ -914,7 +921,7 @@ void Battleground::EndBattleground(uint32 winner)
         }
         else
         {
-            if (IsRandom() || BattlegroundMgr::IsBGWeekend(GetTypeID()))
+            if (!customResult && (IsRandom() || BattlegroundMgr::IsBGWeekend(GetTypeID())))
                 UpdatePlayerScore(player, SCORE_BONUS_HONOR, GetBonusHonorFromKill(loserKills));
         }
 
@@ -929,7 +936,8 @@ void Battleground::EndBattleground(uint32 winner)
         sBattlegroundMgr->BuildBattlegroundStatusPacket(&data, this, player, player->GetBattlegroundQueueIndex(bgQueueTypeId), STATUS_IN_PROGRESS, player->GetBattlegroundQueueJoinTime(GetTypeID()), GetElapsedTime(), GetArenaType());
         player->SendDirectMessage(&data);
 
-        player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_BATTLEGROUND, 1);
+        if (!customResult)
+            player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_BATTLEGROUND, 1);
     }
 
     if (isArena() && isRated() && winnerArenaTeam && loserArenaTeam && winnerArenaTeam != loserArenaTeam)
@@ -964,6 +972,8 @@ void Battleground::BlockMovement(Player* player)
 void Battleground::RemovePlayerAtLeave(uint64 guid, bool Transport, bool SendPacket)
 {
     uint32 team = GetPlayerTeam(guid);
+    if (isArena() && m_Players.count(guid))
+        sScriptMgr->BeforeArenaPlayerLeave(this, guid, team);
     bool participant = false;
     // Remove from lists/maps
     BattlegroundPlayerMap::iterator itr = m_Players.find(guid);
@@ -1320,6 +1330,13 @@ void Battleground::EventPlayerLoggedOut(Player* player)
     // player is correct pointer, it is checked in WorldSession::LogoutPlayer()
     m_OfflineQueue.push_back(player->GetGUID());
     m_Players[guid].OfflineRemoveTime = sWorld->GetGameTime() + MAX_OFFLINE_TIME;
+    if (isArena() && sBattlegroundMgr->IsCustomArena(GetArenaType()))
+    {
+        // Custom results use the normal offline removal deadline during combat.
+        if (GetStatus() == STATUS_WAIT_JOIN)
+            sScriptMgr->BeforeArenaPlayerLeave(this, guid, GetPlayerTeam(guid));
+        return;
+    }
     if (GetStatus() == STATUS_IN_PROGRESS)
     {
         // drop flag and handle other cleanups

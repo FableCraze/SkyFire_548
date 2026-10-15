@@ -319,6 +319,9 @@ void BattlegroundQueue::RemovePlayer(uint64 guid, bool decreaseInvitedCount)
     }
     SF_LOG_DEBUG("bg.battleground", "BattlegroundQueue: Removing player GUID %u, from bracket_id %u", GUID_LOPART(guid), (uint32)bracket_id);
 
+    if (group->ArenaType)
+        sScriptMgr->OnArenaQueueRemoved(this, guid, *group, decreaseInvitedCount);
+
     // ALL variables are correctly set
     // We can ignore leveling up in queue - it should not cause crash
     // remove player from group
@@ -406,6 +409,36 @@ bool BattlegroundQueue::GetPlayerGroupInfoData(uint64 guid, GroupQueueInfo* ginf
 uint32 BattlegroundQueue::GetPlayersInQueue(TeamId id)
 {
     return m_SelectionPools[id].GetPlayerCount();
+}
+
+bool BattlegroundQueue::InviteArenaPair(GroupQueueInfo* first, GroupQueueInfo* second, Battleground* arena)
+{
+    if (!first || !second || first == second || first->IsInvitedToBGInstanceGUID || second->IsInvitedToBGInstanceGUID)
+        return false;
+    uint8 bracket = uint8(arena->GetBracketId());
+    GroupQueueInfo* groups[] = { first, second };
+    for (uint32 side = 0; side < BG_TEAMS_COUNT; ++side)
+    {
+        GroupQueueInfo* group = groups[side];
+        uint32 target = side + (group->IsRated ? 0 : BG_TEAMS_COUNT);
+        for (uint32 bucket = 0; bucket < BG_QUEUE_GROUP_TYPES_COUNT; ++bucket)
+        {
+            auto& source = m_QueuedGroups[bracket][bucket];
+            auto itr = std::find(source.begin(), source.end(), group);
+            if (itr != source.end())
+            {
+                source.erase(itr);
+                break;
+            }
+        }
+        m_QueuedGroups[bracket][target].push_back(group);
+        group->OpponentsTeamRating = groups[1 - side]->ArenaTeamRating;
+        group->OpponentsMatchmakerRating = groups[1 - side]->ArenaMatchmakerRating;
+        arena->SetArenaMatchmakerRating(side == TEAM_ALLIANCE ? ALLIANCE : HORDE, group->ArenaMatchmakerRating);
+        InviteGroupToBG(group, arena, side == TEAM_ALLIANCE ? ALLIANCE : HORDE);
+    }
+    arena->StartBattleground();
+    return true;
 }
 
 bool BattlegroundQueue::InviteGroupToBG(GroupQueueInfo* ginfo, Battleground* bg, uint32 side)
@@ -725,6 +758,8 @@ should be called from Battleground::RemovePlayer function in some cases
 */
 void BattlegroundQueue::BattlegroundQueueUpdate(uint32 /*diff*/, BattlegroundTypeId bgTypeId, BattlegroundBracketId bracket_id, uint8 arenaType, bool isRated, uint32 arenaRating)
 {
+    if (sScriptMgr->UpdateArenaQueue(this, bgTypeId, uint8(bracket_id), arenaType, isRated))
+        return;
     uint8 BracketID = uint8(bracket_id);
     //if no players in queue - do nothing
     if (m_QueuedGroups[BracketID][BG_QUEUE_PREMADE_ALLIANCE].empty() &&

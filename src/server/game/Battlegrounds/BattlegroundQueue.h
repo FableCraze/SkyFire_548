@@ -108,6 +108,7 @@ public:
     //one selection pool for horde, other one for alliance
     SelectionPool m_SelectionPools[BG_TEAMS_COUNT];
     uint32 GetPlayersInQueue(TeamId id);
+    bool InviteArenaPair(GroupQueueInfo* first, GroupQueueInfo* second, Battleground* arena);
 
 private:
     bool InviteGroupToBG(GroupQueueInfo* ginfo, Battleground* bg, uint32 side);

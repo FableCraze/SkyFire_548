@@ -100,6 +100,9 @@ void BattlegroundMgr::Update(uint32 diff)
     for (int qtype = BATTLEGROUND_QUEUE_NONE; qtype < MAX_BATTLEGROUND_QUEUE_TYPES; ++qtype)
         m_BattlegroundQueues[qtype].UpdateEvents(diff);
 
+    for (auto& entry : m_CustomArenaQueues)
+        entry.second.Queue->UpdateEvents(diff);
+
     // update scheduled queues
     if (!m_QueueUpdateScheduler.empty())
     {
@@ -112,7 +115,7 @@ void BattlegroundMgr::Update(uint32 diff)
             BattlegroundQueueTypeId bgQueueTypeId = BattlegroundQueueTypeId(scheduled[i].QueueId);
             BattlegroundTypeId bgTypeId = BattlegroundTypeId(scheduled[i].TypeId);
             BattlegroundBracketId bracket_id = BattlegroundBracketId(scheduled[i].BracketId);
-            m_BattlegroundQueues[bgQueueTypeId].BattlegroundQueueUpdate(diff, bgTypeId, bracket_id, arenaType, arenaMMRating > 0, arenaMMRating);
+            GetBattlegroundQueue(bgQueueTypeId).BattlegroundQueueUpdate(diff, bgTypeId, bracket_id, arenaType, scheduled[i].Rated, arenaMMRating);
         }
     }
 
@@ -137,7 +140,7 @@ void BattlegroundMgr::Update(uint32 diff)
     }
 }
 
-void BattlegroundMgr::BuildBattlegroundStatusPacket(WorldPacket* data, Battleground* bg, Player* player, uint8 QueueSlot, uint8 StatusID, uint32 Time1, uint32 Time2, uint8 arenatype)
+void BattlegroundMgr::BuildBattlegroundStatusPacket(WorldPacket* data, Battleground* bg, Player* player, uint8 QueueSlot, uint8 StatusID, uint32 Time1, uint32 Time2, uint8 arenatype, int8 rated)
 {
     ObjectGuid playerGuid = player->GetGUID();
     ObjectGuid bgGuid;
@@ -184,7 +187,7 @@ void BattlegroundMgr::BuildBattlegroundStatusPacket(WorldPacket* data, Battlegro
             data->WriteBit(bgGuid[5]);
             data->WriteBit(playerGuid[0]);
             data->WriteBit(bgGuid[7]);
-            data->WriteBit(bg->isRated());              // Is Rated
+            data->WriteBit(rated < 0 ? bg->isRated() : rated != 0); // Is Rated
             data->WriteBit(0);                          // AsGroup
             data->WriteBit(1);                          // Eligible In Queue
             data->WriteBit(playerGuid[6]);
@@ -247,7 +250,7 @@ void BattlegroundMgr::BuildBattlegroundStatusPacket(WorldPacket* data, Battlegro
             data->WriteBit(bgGuid[7]);
             data->WriteBit(bgGuid[4]);
             data->WriteBit(bgGuid[1]);
-            data->WriteBit(bg->isRated());              // Is Rated
+            data->WriteBit(rated < 0 ? bg->isRated() : rated != 0); // Is Rated
             data->WriteBit(playerGuid[2]);
             data->WriteBit(bgGuid[6]);
             data->WriteBit(playerGuid[3]);
@@ -303,7 +306,7 @@ void BattlegroundMgr::BuildBattlegroundStatusPacket(WorldPacket* data, Battlegro
             data->WriteBit(playerGuid[1]);
             data->WriteBit(playerGuid[4]);
             data->WriteBit(playerGuid[5]);
-            data->WriteBit(bg->isRated());              // Is Rated
+            data->WriteBit(rated < 0 ? bg->isRated() : rated != 0); // Is Rated
 
             data->FlushBits();
 
@@ -873,6 +876,9 @@ Battleground* BattlegroundMgr::CreateNewBattleground(BattlegroundTypeId original
     if (bg->isArena())
     {
         uint32 maxPlayersPerTeam = 0;
+        for (auto const& entry : m_CustomArenaQueues)
+            if (entry.second.ArenaType == arenaType)
+                maxPlayersPerTeam = entry.second.TeamSize;
         switch (arenaType)
         {
             case ARENA_TYPE_2v2:
@@ -888,6 +894,11 @@ Battleground* BattlegroundMgr::CreateNewBattleground(BattlegroundTypeId original
 
         bg->SetMaxPlayersPerTeam(maxPlayersPerTeam);
         bg->SetMaxPlayers(maxPlayersPerTeam * 2);
+        if (IsCustomArena(arenaType))
+        {
+            bg->SetMinPlayersPerTeam(maxPlayersPerTeam);
+            bg->SetMinPlayers(maxPlayersPerTeam * 2);
+        }
     }
 
     return bg;
@@ -1208,6 +1219,10 @@ bool BattlegroundMgr::IsArenaType(BattlegroundTypeId bgTypeId)
 
 BattlegroundQueueTypeId BattlegroundMgr::BGQueueTypeId(BattlegroundTypeId bgTypeId, uint8 arenaType)
 {
+    if (IsArenaType(bgTypeId))
+        for (auto const& entry : sBattlegroundMgr->m_CustomArenaQueues)
+            if (entry.second.ArenaType == arenaType)
+                return entry.first;
     switch (bgTypeId)
     {
         case BattlegroundTypeId::BATTLEGROUND_AB:
@@ -1255,6 +1270,8 @@ BattlegroundQueueTypeId BattlegroundMgr::BGQueueTypeId(BattlegroundTypeId bgType
 
 BattlegroundTypeId BattlegroundMgr::BGTemplateId(BattlegroundQueueTypeId bgQueueTypeId)
 {
+    if (sBattlegroundMgr->m_CustomArenaQueues.count(bgQueueTypeId))
+        return BattlegroundTypeId::BATTLEGROUND_AA;
     switch (bgQueueTypeId)
     {
         case BATTLEGROUND_QUEUE_WS:
@@ -1288,6 +1305,9 @@ BattlegroundTypeId BattlegroundMgr::BGTemplateId(BattlegroundQueueTypeId bgQueue
 
 uint8 BattlegroundMgr::BGArenaType(BattlegroundQueueTypeId bgQueueTypeId)
 {
+    auto custom = sBattlegroundMgr->m_CustomArenaQueues.find(bgQueueTypeId);
+    if (custom != sBattlegroundMgr->m_CustomArenaQueues.end())
+        return custom->second.ArenaType;
     switch (bgQueueTypeId)
     {
         case BATTLEGROUND_QUEUE_2v2:
@@ -1299,6 +1319,53 @@ uint8 BattlegroundMgr::BGArenaType(BattlegroundQueueTypeId bgQueueTypeId)
         default:
             return 0;
     }
+}
+
+BattlegroundQueueTypeId BattlegroundMgr::RegisterArenaQueue(uint8 arenaType, uint32 teamSize)
+{
+    if (!arenaType || !teamSize || arenaType == ARENA_TYPE_2v2 || arenaType == ARENA_TYPE_3v3 || arenaType == ARENA_TYPE_5v5)
+        return BATTLEGROUND_QUEUE_NONE;
+    for (auto const& entry : m_CustomArenaQueues)
+        if (entry.second.ArenaType == arenaType)
+            return BATTLEGROUND_QUEUE_NONE;
+    auto id = BattlegroundQueueTypeId(MAX_BATTLEGROUND_QUEUE_TYPES + m_CustomArenaQueues.size());
+    CustomArenaQueue queue { arenaType, teamSize, std::unique_ptr<BattlegroundQueue>(new BattlegroundQueue) };
+    m_CustomArenaQueues.emplace(id, std::move(queue));
+    return id;
+}
+
+bool BattlegroundMgr::IsCustomArena(uint8 arenaType) const
+{
+    for (auto const& entry : m_CustomArenaQueues)
+        if (entry.second.ArenaType == arenaType)
+            return true;
+    return false;
+}
+
+BattlegroundQueue& BattlegroundMgr::GetBattlegroundQueue(BattlegroundQueueTypeId id)
+{
+    if (id >= BATTLEGROUND_QUEUE_NONE && id < MAX_BATTLEGROUND_QUEUE_TYPES)
+        return m_BattlegroundQueues[id];
+    return *m_CustomArenaQueues.at(id).Queue;
+}
+
+bool BattlegroundMgr::LeaveQueue(Player* player, BattlegroundQueueTypeId id)
+{
+    GroupQueueInfo info;
+    BattlegroundQueue& queue = GetBattlegroundQueue(id);
+    if (!queue.GetPlayerGroupInfoData(player->GetGUID(), &info))
+        return false;
+    Battleground* bg = GetBattlegroundTemplate(BGTemplateId(id));
+    if (!bg)
+        return false;
+    WorldPacket data;
+    BuildBattlegroundStatusPacket(&data, bg, player, player->GetBattlegroundQueueIndex(id), STATUS_NONE,
+        player->GetBattlegroundQueueJoinTime(info.BgTypeId), 0, 0);
+    player->SendDirectMessage(&data);
+    player->RemoveBattlegroundQueueId(id);
+    queue.RemovePlayer(player->GetGUID(), true);
+    player->RemoveBattlegroundQueueJoinTime(info.BgTypeId);
+    return true;
 }
 
 void BattlegroundMgr::ToggleTesting()
@@ -1324,11 +1391,11 @@ void BattlegroundMgr::SetHolidayWeekends(uint32 mask)
     }
 }
 
-void BattlegroundMgr::ScheduleQueueUpdate(uint32 arenaMatchmakerRating, uint8 arenaType, BattlegroundQueueTypeId bgQueueTypeId, BattlegroundTypeId bgTypeId, BattlegroundBracketId bracket_id)
+void BattlegroundMgr::ScheduleQueueUpdate(uint32 arenaMatchmakerRating, uint8 arenaType, BattlegroundQueueTypeId bgQueueTypeId, BattlegroundTypeId bgTypeId, BattlegroundBracketId bracket_id, int8 rated)
 {
     //This method must be atomic, @todo add mutex
     //we will use only 1 number created of bgTypeId and bracket_id
-    ScheduledQueueUpdate scheduleId = { arenaMatchmakerRating, arenaType, bgQueueTypeId, bgTypeId, bracket_id };
+    ScheduledQueueUpdate scheduleId = { arenaMatchmakerRating, arenaType, bgQueueTypeId, bgTypeId, bracket_id, rated < 0 ? arenaMatchmakerRating > 0 : rated != 0 };
     if (std::find(m_QueueUpdateScheduler.begin(), m_QueueUpdateScheduler.end(), scheduleId) == m_QueueUpdateScheduler.end())
         m_QueueUpdateScheduler.push_back(scheduleId);
 }

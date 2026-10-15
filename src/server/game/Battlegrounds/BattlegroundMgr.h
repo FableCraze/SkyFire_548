@@ -10,6 +10,7 @@
 #include "BattlegroundQueue.h"
 #include "Common.h"
 #include "DBCEnums.h"
+#include <memory>
 #include "Platform/Singleton.h"
 
 typedef std::map<uint32, Battleground*> BattlegroundContainer;
@@ -66,7 +67,7 @@ public:
     void BuildStatusFailedPacket(WorldPacket* data, Battleground* bg, Player* pPlayer, uint8 QueueSlot, GroupJoinBattlegroundResult result);
     void BuildUpdateWorldStatePacket(WorldPacket* data, uint32 field, uint32 value);
     void BuildPvpLogDataPacket(WorldPacket* data, Battleground* bg);
-    void BuildBattlegroundStatusPacket(WorldPacket* data, Battleground* bg, Player* player, uint8 queueSlot, uint8 statusId, uint32 time1, uint32 time2, uint8 arenaType);
+    void BuildBattlegroundStatusPacket(WorldPacket* data, Battleground* bg, Player* player, uint8 queueSlot, uint8 statusId, uint32 time1, uint32 time2, uint8 arenaType, int8 rated = -1);
     void BuildPlaySoundPacket(WorldPacket* data, uint32 soundId);
     void SendAreaSpiritHealerQueryOpcode(Player* player, Battleground* bg, uint64 guid);
 
@@ -88,8 +89,18 @@ public:
     void SendToBattleground(Player* player, uint32 InstanceID, BattlegroundTypeId bgTypeId);
 
     /* Battleground queues */
-    BattlegroundQueue& GetBattlegroundQueue(BattlegroundQueueTypeId bgQueueTypeId) { return m_BattlegroundQueues[bgQueueTypeId]; }
-    void ScheduleQueueUpdate(uint32 arenaMatchmakerRating, uint8 arenaType, BattlegroundQueueTypeId bgQueueTypeId, BattlegroundTypeId bgTypeId, BattlegroundBracketId bracket_id);
+    struct CustomArenaQueue
+    {
+        uint8 ArenaType;
+        uint32 TeamSize;
+        std::unique_ptr<BattlegroundQueue> Queue;
+    };
+    BattlegroundQueueTypeId RegisterArenaQueue(uint8 arenaType, uint32 teamSize);
+    bool IsCustomArena(uint8 arenaType) const;
+    BattlegroundQueue& GetBattlegroundQueue(BattlegroundQueueTypeId bgQueueTypeId);
+    bool LeaveQueue(Player* player, BattlegroundQueueTypeId queueId);
+
+    void ScheduleQueueUpdate(uint32 arenaMatchmakerRating, uint8 arenaType, BattlegroundQueueTypeId bgQueueTypeId, BattlegroundTypeId bgTypeId, BattlegroundBracketId bracket_id, int8 rated = -1);
     uint32 GetPrematureFinishTime() const;
 
     void ToggleArenaTesting();
@@ -129,6 +140,7 @@ private:
     BattlegroundDataContainer bgDataStore;
 
     BattlegroundQueue m_BattlegroundQueues[MAX_BATTLEGROUND_QUEUE_TYPES];
+    std::map<BattlegroundQueueTypeId, CustomArenaQueue> m_CustomArenaQueues;
 
     struct ScheduledQueueUpdate
     {
@@ -137,10 +149,11 @@ private:
         BattlegroundQueueTypeId QueueId;
         BattlegroundTypeId TypeId;
         BattlegroundBracketId BracketId;
+        bool Rated;
 
         bool operator==(ScheduledQueueUpdate const& right) const
         {
-            return ArenaMMRating == right.ArenaMMRating && QueueId == right.QueueId && BracketId == right.BracketId;
+            return ArenaMMRating == right.ArenaMMRating && QueueId == right.QueueId && BracketId == right.BracketId && Rated == right.Rated;
         }
     };
 

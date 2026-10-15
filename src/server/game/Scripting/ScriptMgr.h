@@ -49,6 +49,7 @@ class WorldPacket;
 class WorldSocket;
 class WorldObject;
 
+struct GroupQueueInfo;
 struct AuctionEntry;
 struct ConditionSourceInfo;
 struct Condition;
@@ -500,6 +501,12 @@ protected:
     explicit PvPScript(char const* name);
 public:
     bool IsDatabaseBound() const override { return false; }
+    virtual bool UpdateArenaQueue(BattlegroundQueue*, BattlegroundTypeId, uint8, uint8, bool) { return false; }
+    virtual bool CanEnterArena(Player*, Battleground*) { return true; }
+    virtual void OnArenaQueueRemoved(BattlegroundQueue*, uint64, GroupQueueInfo const&, bool) { }
+    virtual void BeforeArenaPlayerLeave(Battleground*, uint64, uint32) { }
+    virtual bool HandleArenaResult(Battleground*, uint32) { return false; }
+    virtual void OnArenaDestroyed(Battleground*) { }
     virtual bool SelectBGGroups(BattlegroundQueue*, Battleground*, uint8, uint32, uint32, bool) { return false; }
     virtual bool CanJoinBG(Player*, Group*) { return true; }
     virtual bool HandleBGQueueAnnounce(BattlegroundQueue*, Battleground*, Player*, uint8, uint32, uint32) { return false; }
@@ -936,6 +943,12 @@ public: /* Initialization */
     /* BattlegroundScript */
     Battleground* CreateBattleground(BattlegroundTypeId typeId);
 
+    bool UpdateArenaQueue(BattlegroundQueue*, BattlegroundTypeId, uint8, uint8, bool) const;
+    bool CanEnterArena(Player*, Battleground*) const;
+    void OnArenaQueueRemoved(BattlegroundQueue*, uint64, GroupQueueInfo const&, bool) const;
+    void BeforeArenaPlayerLeave(Battleground*, uint64, uint32) const;
+    bool HandleArenaResult(Battleground*, uint32) const;
+    void OnArenaDestroyed(Battleground*) const;
     bool SelectBGGroups(BattlegroundQueue*, Battleground*, uint8, uint32, uint32, bool) const;
     bool CanJoinBG(Player*, Group*) const;
     bool HandleBGQueueAnnounce(BattlegroundQueue*, Battleground*, Player*, uint8, uint32, uint32) const;
