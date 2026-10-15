@@ -17,6 +17,7 @@ class Transaction
 {
     friend class TransactionTask;
     friend class MySQLConnection;
+    friend class CheckedTransaction;
 
     template <typename T>
     friend class DatabaseWorkerPool;

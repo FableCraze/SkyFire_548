@@ -325,6 +325,7 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
     /// Update Timeout timer.
     UpdateTimeOutTime(diff);
     m_charBooster->Update(diff);
+    if (updater.ProcessLogout()) sBattlePayMgr->UpdateSession(this, diff);
     UpdatePetBattlePvpQueueState();
 
     ///- Before we process anything:

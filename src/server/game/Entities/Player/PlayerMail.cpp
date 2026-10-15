@@ -43,6 +43,35 @@ void Player::SendNewMail()
     GetSession()->SendPacket(&data);
 }
 
+// Called after a confirmed delivery, including recovery of a lost COMMIT response.
+// Load only missing mails: never discard dirty mail state already held in memory.
+void Player::RefreshBattlePayMail(uint64 purchaseId)
+{
+    if (!IsMailsLoaded())
+    {
+        _LoadMail();
+        UpdateNextMailTimeAndUnreads();
+        SendNewMail();
+        return;
+    }
+    auto rows=CharacterDatabase.PQuery("SELECT m.id,m.messageType,m.sender,m.receiver,m.subject,m.body,m.has_items,m.expire_time,m.deliver_time,m.money,m.cod,m.checked,m.stationery,m.mailTemplateId FROM mail m JOIN battlepay_delivery_mail d ON d.mailId=m.id WHERE d.purchaseId=" UI64FMTD " AND m.receiver=%u",purchaseId,GetGUIDLow());
+    bool added=false;
+    if (rows) do
+    {
+        auto f=rows->Fetch();
+        if (GetMail(f[0].GetUInt32())) continue;
+        Mail* mail=new Mail;
+        mail->messageID=f[0].GetUInt32(); mail->messageType=f[1].GetUInt8(); mail->sender=f[2].GetUInt32();
+        mail->receiver=f[3].GetUInt32(); mail->subject=f[4].GetString(); mail->body=f[5].GetString();
+        mail->expire_time=time_t(f[7].GetUInt64()); mail->deliver_time=time_t(f[8].GetUInt64());
+        mail->money=f[9].GetUInt64(); mail->COD=f[10].GetUInt64(); mail->checked=f[11].GetUInt8();
+        mail->stationery=f[12].GetUInt8(); mail->mailTemplateId=f[13].GetUInt16(); mail->state=MailState::MAIL_STATE_UNCHANGED;
+        if (f[6].GetBool()) _LoadMailedItems(mail);
+        AddMail(mail); added=true;
+    } while (rows->NextRow());
+    if (added) {UpdateNextMailTimeAndUnreads(); SendNewMail();}
+}
+
 void Player::UpdateNextMailTimeAndUnreads()
 {
     // calculate next delivery time (min. from non-delivered mails

@@ -31,6 +31,7 @@ void AddSC_account_commandscript();
 void AddSC_achievement_commandscript();
 void AddSC_ban_commandscript();
 void AddSC_battlepet_commandscript();
+void AddSC_battlepay_commandscript();
 void AddSC_bf_commandscript();
 void AddSC_cast_commandscript();
 void AddSC_character_commandscript();
@@ -706,6 +707,7 @@ void AddCommandScripts()
     AddSC_achievement_commandscript();
     AddSC_ban_commandscript();
     AddSC_battlepet_commandscript();
+    AddSC_battlepay_commandscript();
     AddSC_bf_commandscript();
     AddSC_cast_commandscript();
     AddSC_character_commandscript();

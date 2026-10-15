@@ -22,6 +22,7 @@ EndScriptData */
 #include "MapManager.h"
 #include "ObjectMgr.h"
 #include "ScriptMgr.h"
+#include "BattlePayMgr.h"
 #include "SkillDiscovery.h"
 #include "SkillExtraItems.h"
 #include "SmartAI.h"
@@ -34,6 +35,13 @@ class reload_commandscript : public CommandScript
 {
 public:
     reload_commandscript() : CommandScript("reload_commandscript") { }
+
+    static bool HandleReloadBattlePayCommand(ChatHandler* handler, char const*)
+    {
+        bool ok=sBattlePayMgr->LoadFromDb();
+        handler->SendSysMessage(ok?"BattlePay reloaded.":"BattlePay schema unavailable; check migrations.");
+        return ok;
+    }
 
     std::vector<ChatCommand> GetCommands() const
     {
@@ -53,6 +61,7 @@ public:
         };
         static std::vector<ChatCommand> reloadCommandTable =
         {
+            { "battlepay", rbac::RBAC_PERM_COMMAND_RELOAD_BATTLEPAY, true, &HandleReloadBattlePayCommand, "" },
             { "auctions",                      rbac::RBAC_PERM_COMMAND_RELOAD_AUCTIONS,                   true,  &HandleReloadAuctionsCommand,                   "", },
             { "access_requirement",            rbac::RBAC_PERM_COMMAND_RELOAD_ACCESS_REQUIREMENT,         true,  &HandleReloadAccessRequirementCommand,          "", },
             { "achievement_criteria_data",     rbac::RBAC_PERM_COMMAND_RELOAD_ACHIEVEMENT_CRITERIA_DATA,  true,  &HandleReloadAchievementCriteriaDataCommand,    "", },

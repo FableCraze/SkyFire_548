@@ -11,6 +11,7 @@
 #define __WORLDSESSION_H
 
 #include "AccountMgr.h"
+#include "BattlePayMgr.h"
 #include "Authentication/AuthDefines.h"
 #include "AddonMgr.h"
 #include <atomic>
@@ -552,6 +553,12 @@ public:
     // Recruit-A-Friend Handling
     uint32 GetRecruiterId() const { return recruiterId; }
     bool IsARecruiter() const { return isRecruiter; }
+
+    BattlePayContext& GetBattlePayContext() { return m_battlePay; }
+    void HandleBattlePayGetProductList(WorldPacket& packet);
+    void HandleBattlePayGetPurchaseList(WorldPacket& packet);
+    void HandleBattlePayStartPurchase(WorldPacket& packet);
+    void HandleBattlePayConfirmPurchaseResponse(WorldPacket& packet);
 
     // Boost
     bool HasBoost() const { return m_hasBoost; }
@@ -1242,6 +1249,7 @@ private:
     uint32 m_virtualRealmID;
     uint8 m_expansion;
     CharacterBooster* m_charBooster;
+    BattlePayContext m_battlePay;
 
     typedef std::list<AddonInfo> AddonsList;
 

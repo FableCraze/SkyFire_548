@@ -113,7 +113,7 @@ void WorldSession::SendAuthResponse(ResponseCodes code, bool queued, uint32 queu
         packet << uint32(0);
         packet << uint32(0);          // "Your playtime expires in %u minutes." Gossip Code Box Warning, 1 = 1min
         packet << uint8(Expansion()); // Server Expansion
-        packet << uint32(0);
+        packet << uint32(sBattlePayMgr->GetStoreCurrency());
         packet << uint32(0);
         packet << uint32(0);
     }
@@ -135,7 +135,7 @@ void WorldSession::SendFeatureSystemStatusGlueScreen()
     WorldPacket data(SMSG_FEATURE_SYSTEM_STATUS_GLUE_SCREEN);
     data.WriteBit(true);  // show ingame shop icon
     data.WriteBit(false); // ingame shop parental control
-    data.WriteBit(true);  // ingame shop status
+    data.WriteBit(sBattlePayMgr->IsStoreEnabled());  // ingame shop status
     data.FlushBits();
 
     SendPacket(&data);

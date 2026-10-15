@@ -1531,7 +1531,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
     data << uint32(0);
 
     data.WriteBit(0);
-    data.WriteBit(1);                   // ingame shop status (0 - "The Shop is temporarily unavailable.")
+    data.WriteBit(sBattlePayMgr->IsStoreEnabled()); // ingame shop status (0 - "The Shop is temporarily unavailable.")
     data.WriteBit(0);
     data.WriteBit(0);                   // Recruit a Friend button
     data.WriteBit(0);                   // server supports voice chat

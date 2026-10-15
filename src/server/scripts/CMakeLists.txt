@@ -107,6 +107,7 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/src/server/game/Battlefield
   ${CMAKE_SOURCE_DIR}/src/server/game/Battlefield/Zones
   ${CMAKE_SOURCE_DIR}/src/server/game/BattlePet
+  ${CMAKE_SOURCE_DIR}/src/server/game/BattlePay
   ${CMAKE_SOURCE_DIR}/src/server/game/Battlegrounds
   ${CMAKE_SOURCE_DIR}/src/server/game/Battlegrounds/Zones
   ${CMAKE_SOURCE_DIR}/src/server/game/BlackMarket

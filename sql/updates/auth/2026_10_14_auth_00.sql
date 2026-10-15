@@ -1,0 +1,40 @@
+-- BattlePay: account wallet and immutable purchase snapshots. No FusionCMS dependency.
+CREATE TABLE IF NOT EXISTS battlepay_wallet (
+ accountId INT UNSIGNED NOT NULL PRIMARY KEY,
+ balance BIGINT UNSIGNED NOT NULL DEFAULT 0,
+ updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS battlepay_purchase (
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ operationId VARCHAR(32) CHARACTER SET ascii NOT NULL UNIQUE,
+ accountId INT UNSIGNED NOT NULL, realmId INT UNSIGNED NOT NULL,
+ targetGuid INT UNSIGNED NOT NULL, productId INT UNSIGNED NOT NULL,
+ productType TINYINT UNSIGNED NOT NULL,
+ title VARCHAR(200) NOT NULL, description TEXT NOT NULL,
+ price BIGINT UNSIGNED NOT NULL, state TINYINT UNSIGNED NOT NULL DEFAULT 0,
+ createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ paidAt TIMESTAMP NULL DEFAULT NULL,
+ updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ KEY pending_delivery (realmId,state,id), KEY account_history (accountId,id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS battlepay_purchase_item (
+ purchaseId BIGINT UNSIGNED NOT NULL, lineId INT UNSIGNED NOT NULL,
+ itemId INT UNSIGNED NOT NULL, quantity INT UNSIGNED NOT NULL,
+ PRIMARY KEY (purchaseId,lineId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS battlepay_wallet_movement (
+ id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+ operationId VARCHAR(64) CHARACTER SET ascii NOT NULL UNIQUE,
+ accountId INT UNSIGNED NOT NULL, kind VARCHAR(16) CHARACTER SET ascii NOT NULL,
+ amount BIGINT UNSIGNED NOT NULL, balanceBefore BIGINT UNSIGNED NOT NULL,
+ balanceAfter BIGINT UNSIGNED NOT NULL, reason VARCHAR(255) NOT NULL,
+ actorAccountId INT UNSIGNED NOT NULL DEFAULT 0,
+ purchaseId BIGINT UNSIGNED NULL, createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ UNIQUE KEY purchase_movement (purchaseId,kind), KEY history (accountId,id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT IGNORE INTO rbac_permissions (id,name) VALUES
+ (1018,'Command: battlepay'),(1019,'Command: battlepay balance'),
+ (1020,'Command: battlepay wallet'),(1021,'Command: battlepay purchase'),
+ (1022,'Command: reload battlepay');
+INSERT IGNORE INTO rbac_linked_permissions (id,linkedId) VALUES
+ (195,1018),(195,1019),(192,1020),(192,1021),(192,1022);

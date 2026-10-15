@@ -85,6 +85,10 @@ public:
     void RollbackTransaction();
     void CommitTransaction();
     bool ExecuteTransaction(SQLTransaction& transaction);
+    bool BeginCheckedTransaction();
+    // 0 = committed, 1 = failed, 2 = indeterminate. Kept independent of pool headers.
+    int EndCheckedTransaction(bool commit);
+    std::string QuoteString(std::string const& value);
 
     operator bool() const { return m_Mysql != NULL; }
     void Ping() { mysql_ping(m_Mysql); }
@@ -120,6 +124,9 @@ protected:
 
 private:
     bool _HandleMySQLErrno(uint32 errNo);
+    bool m_checkedTransaction = false;
+    bool m_checkedFailed = false;
+    bool m_checkedDisconnected = false;
 
 private:
     Skyfire::DatabaseQueue* m_queue;          //! Queue shared with other asynchronous connections.

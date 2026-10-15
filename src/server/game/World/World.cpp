@@ -74,6 +74,7 @@
 #include "WaypointMovementGenerator.h"
 #include "WeatherMgr.h"
 #include "World.h"
+#include "BattlePayMgr.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "WorldSocket.h"
@@ -108,6 +109,7 @@ World::World()
     m_NextWeeklyQuestReset = 0;
     m_NextCurrencyReset = 0;
 
+    sBattlePayMgr->Configure();
     m_defaultDbcLocale = LOCALE_enUS;
     m_availableDbcLocaleMask = 0;
 
@@ -284,6 +286,7 @@ void World::AddSession_(WorldSession* s)
 
     s->SendAuthResponse(ResponseCodes::AUTH_OK, false);
     s->SendFeatureSystemStatusGlueScreen();
+    sBattlePayMgr->SendBattlePayDistributionList(s);
     s->SendAddonsInfo();
     s->SendClientCacheVersion(sWorld->getIntConfig(WorldIntConfigs::CONFIG_CLIENTCACHE_VERSION));
     if (s->HasBoost())
@@ -1564,6 +1567,7 @@ void World::SetInitialWorldSettings()
 
     SF_LOG_INFO("misc", "Loading Item Scripts...");                 // must be after LoadItemPrototypes
     sObjectMgr->LoadItemScriptNames();
+    sBattlePayMgr->LoadFromDb();
 
     SF_LOG_INFO("server.loading", "Loading Creature Model Based Info Data...");
     sObjectMgr->LoadCreatureModelInfo();
@@ -2195,6 +2199,7 @@ void World::Update(uint32 diff)
 
     /// <li> Handle session updates when the timer has passed
     RecordTimeDiff(NULL);
+    sBattlePayMgr->Update(diff);
     UpdateSessions(diff);
     RecordTimeDiff("UpdateSessions");
 

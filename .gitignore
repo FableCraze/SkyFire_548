@@ -32,6 +32,7 @@ cmake-build-debug/
 /contrib/ScriptsConverter/Backup
 /contrib/ScriptsConverter/ScriptConverter/obj/Debug
 /contrib/ScriptsConverter/ScriptConverter/obj/Release
+/contrib/Client_Patch/Client Patcher/obj/
  
 # Antigravity/MCP local development helpers
 /skyfire_mcp.py

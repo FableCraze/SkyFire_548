@@ -3323,3 +3323,27 @@ Boost.StartLevel = 90
 
 #
 ###################################################################################################
+
+# Native BattlePay store. Wallet uses auth; 10000 units = one credit.
+# Enable the catalog first, then purchases after testing.
+BattlePay.StoreEnabled = 0
+BattlePay.PurchasesEnabled = 0
+#
+#    BattlePay.Currency
+#        Description: Currency displayed by the native store. Wallet balances remain credits.
+#        Values:      1  - USD (US Dollar)
+#                     2  - GBP (British Pound)
+#                     3  - KRW (South Korean Won)
+#                     4  - EUR (Euro)
+#                     5  - RUB (Russian Ruble)
+#                     8  - ARS (Argentine Peso)
+#                     9  - CLP (Chilean Peso)
+#                     10 - MXN (Mexican Peso)
+#                     11 - BRL (Brazilian Real)
+#                     12 - AUD (Australian Dollar)
+#                     14 - CPT (Regional Client Currency)
+#                     15 - TPT (Regional Client Currency)
+#                     16 - BETA (Test Currency / XTS)
+#        Default:     16. Unsupported IDs fall back to 16.
+#
+BattlePay.Currency = 16

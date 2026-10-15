@@ -17,6 +17,7 @@
 #include "QueryHolder.h"
 #include "QueryResult.h"
 #include "Transaction.h"
+#include "CheckedTransaction.h"
 
 #define MIN_MYSQL_SERVER_VERSION 50100u
 #define MIN_MYSQL_CLIENT_VERSION 50100u
@@ -378,6 +379,23 @@ public:
     SQLTransaction BeginTransaction()
     {
         return SQLTransaction(new Transaction);
+    }
+
+    template <class Callback>
+    DatabaseCommitResult WithTransaction(Callback const& callback)
+    {
+        T* connection = GetFreeConnection();
+        if (!connection->BeginCheckedTransaction())
+        {
+            connection->Unlock();
+            return DatabaseCommitResult::Failed;
+        }
+        CheckedTransaction transaction(*connection);
+        int result;
+        try { result = connection->EndCheckedTransaction(callback(transaction)); }
+        catch (...) { connection->EndCheckedTransaction(false); connection->Unlock(); throw; }
+        connection->Unlock();
+        return static_cast<DatabaseCommitResult>(result);
     }
 
     //! Enqueues a collection of one-way SQL operations (can be both adhoc and prepared). The order in which these operations

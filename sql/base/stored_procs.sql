@@ -1489,3 +1489,117 @@ DELIMITER ;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- BattlePay prices are credits, converted exactly to 10000 integer units per credit.
+CREATE TABLE IF NOT EXISTS battle_pay_product (
+ id INT UNSIGNED NOT NULL PRIMARY KEY, title VARCHAR(200) NOT NULL,
+ description TEXT NOT NULL, icon INT UNSIGNED NOT NULL DEFAULT 0,
+ price DECIMAL(16,4) UNSIGNED NOT NULL, discount INT UNSIGNED NOT NULL DEFAULT 0,
+ displayId INT UNSIGNED NOT NULL DEFAULT 0, type TINYINT UNSIGNED NOT NULL DEFAULT 0,
+ choiceType TINYINT UNSIGNED NOT NULL DEFAULT 1, flags INT UNSIGNED NOT NULL DEFAULT 47,
+ flagsInfo INT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS battle_pay_product_items (
+ id INT UNSIGNED NOT NULL PRIMARY KEY, itemId INT UNSIGNED NOT NULL,
+ count INT UNSIGNED NOT NULL, productId INT UNSIGNED NOT NULL,
+ KEY product (productId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS battle_pay_group (
+ id INT UNSIGNED NOT NULL PRIMARY KEY, idx INT NOT NULL,
+ name VARCHAR(64) NOT NULL, icon INT UNSIGNED NOT NULL DEFAULT 0,
+ type TINYINT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS battle_pay_entry (
+ id INT UNSIGNED NOT NULL PRIMARY KEY, productId INT UNSIGNED NOT NULL,
+ groupId INT UNSIGNED NOT NULL, idx INT NOT NULL,
+ title VARCHAR(200) NOT NULL DEFAULT '', description TEXT NOT NULL,
+ icon INT UNSIGNED NOT NULL DEFAULT 0, displayId INT UNSIGNED NOT NULL DEFAULT 0,
+ banner TINYINT UNSIGNED NOT NULL DEFAULT 0, flags INT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS locales_battle_pay_product (
+ id INT UNSIGNED NOT NULL PRIMARY KEY,
+ title_loc1 VARCHAR(200) NULL,
+ description_loc1 TEXT NULL,
+ title_loc2 VARCHAR(200) NULL,
+ description_loc2 TEXT NULL,
+ title_loc3 VARCHAR(200) NULL,
+ description_loc3 TEXT NULL,
+ title_loc4 VARCHAR(200) NULL,
+ description_loc4 TEXT NULL,
+ title_loc5 VARCHAR(200) NULL,
+ description_loc5 TEXT NULL,
+ title_loc6 VARCHAR(200) NULL,
+ description_loc6 TEXT NULL,
+ title_loc7 VARCHAR(200) NULL,
+ description_loc7 TEXT NULL,
+ title_loc8 VARCHAR(200) NULL,
+ description_loc8 TEXT NULL,
+ title_loc9 VARCHAR(200) NULL,
+ description_loc9 TEXT NULL,
+ title_loc10 VARCHAR(200) NULL,
+ description_loc10 TEXT NULL,
+ title_loc11 VARCHAR(200) NULL,
+ description_loc11 TEXT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS locales_battle_pay_entry (
+ id INT UNSIGNED NOT NULL PRIMARY KEY,
+ title_loc1 VARCHAR(200) NULL,
+ description_loc1 TEXT NULL,
+ title_loc2 VARCHAR(200) NULL,
+ description_loc2 TEXT NULL,
+ title_loc3 VARCHAR(200) NULL,
+ description_loc3 TEXT NULL,
+ title_loc4 VARCHAR(200) NULL,
+ description_loc4 TEXT NULL,
+ title_loc5 VARCHAR(200) NULL,
+ description_loc5 TEXT NULL,
+ title_loc6 VARCHAR(200) NULL,
+ description_loc6 TEXT NULL,
+ title_loc7 VARCHAR(200) NULL,
+ description_loc7 TEXT NULL,
+ title_loc8 VARCHAR(200) NULL,
+ description_loc8 TEXT NULL,
+ title_loc9 VARCHAR(200) NULL,
+ description_loc9 TEXT NULL,
+ title_loc10 VARCHAR(200) NULL,
+ description_loc10 TEXT NULL,
+ title_loc11 VARCHAR(200) NULL,
+ description_loc11 TEXT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS locales_battle_pay_group (
+ id INT UNSIGNED NOT NULL PRIMARY KEY,
+ name_loc1 VARCHAR(64) NULL,
+ name_loc2 VARCHAR(64) NULL,
+ name_loc3 VARCHAR(64) NULL,
+ name_loc4 VARCHAR(64) NULL,
+ name_loc5 VARCHAR(64) NULL,
+ name_loc6 VARCHAR(64) NULL,
+ name_loc7 VARCHAR(64) NULL,
+ name_loc8 VARCHAR(64) NULL,
+ name_loc9 VARCHAR(64) NULL,
+ name_loc10 VARCHAR(64) NULL,
+ name_loc11 VARCHAR(64) NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Default BattlePay example: one free Hearthstone, delivered by mail.
+-- Existing products and categories are preserved; this migration is repeatable.
+START TRANSACTION;
+
+INSERT IGNORE INTO battle_pay_group (id,idx,name,icon,type)
+VALUES (1,0,'Items',940857,0);
+
+INSERT IGNORE INTO battle_pay_product (id,title,description,icon,price,displayId,type)
+SELECT 6948,'Hearthstone','Free example item, delivered by mail.',134414,0.0000,displayid,0
+FROM item_template WHERE entry=6948;
+
+INSERT IGNORE INTO battle_pay_product_items (id,itemId,count,productId)
+SELECT 6948,6948,1,id FROM battle_pay_product
+WHERE id=6948 AND title='Hearthstone' AND type=0 AND price=0.0000;
+
+INSERT IGNORE INTO battle_pay_entry (id,productId,groupId,idx,title,description)
+SELECT 6948,p.id,1,0,p.title,p.description
+FROM battle_pay_product p JOIN battle_pay_product_items i ON i.productId=p.id
+WHERE p.id=6948 AND p.title='Hearthstone' AND p.type=0 AND p.price=0.0000
+  AND i.id=6948 AND i.itemId=6948 AND i.count=1;
+
+COMMIT;

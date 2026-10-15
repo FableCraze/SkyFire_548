@@ -1,0 +1,90 @@
+-- BattlePay prices are credits, converted exactly to 10000 integer units per credit.
+CREATE TABLE IF NOT EXISTS battle_pay_product (
+ id INT UNSIGNED NOT NULL PRIMARY KEY, title VARCHAR(200) NOT NULL,
+ description TEXT NOT NULL, icon INT UNSIGNED NOT NULL DEFAULT 0,
+ price DECIMAL(16,4) UNSIGNED NOT NULL, discount INT UNSIGNED NOT NULL DEFAULT 0,
+ displayId INT UNSIGNED NOT NULL DEFAULT 0, type TINYINT UNSIGNED NOT NULL DEFAULT 0,
+ choiceType TINYINT UNSIGNED NOT NULL DEFAULT 1, flags INT UNSIGNED NOT NULL DEFAULT 47,
+ flagsInfo INT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS battle_pay_product_items (
+ id INT UNSIGNED NOT NULL PRIMARY KEY, itemId INT UNSIGNED NOT NULL,
+ count INT UNSIGNED NOT NULL, productId INT UNSIGNED NOT NULL,
+ KEY product (productId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS battle_pay_group (
+ id INT UNSIGNED NOT NULL PRIMARY KEY, idx INT NOT NULL,
+ name VARCHAR(64) NOT NULL, icon INT UNSIGNED NOT NULL DEFAULT 0,
+ type TINYINT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS battle_pay_entry (
+ id INT UNSIGNED NOT NULL PRIMARY KEY, productId INT UNSIGNED NOT NULL,
+ groupId INT UNSIGNED NOT NULL, idx INT NOT NULL,
+ title VARCHAR(200) NOT NULL DEFAULT '', description TEXT NOT NULL,
+ icon INT UNSIGNED NOT NULL DEFAULT 0, displayId INT UNSIGNED NOT NULL DEFAULT 0,
+ banner TINYINT UNSIGNED NOT NULL DEFAULT 0, flags INT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS locales_battle_pay_product (
+ id INT UNSIGNED NOT NULL PRIMARY KEY,
+ title_loc1 VARCHAR(200) NULL,
+ description_loc1 TEXT NULL,
+ title_loc2 VARCHAR(200) NULL,
+ description_loc2 TEXT NULL,
+ title_loc3 VARCHAR(200) NULL,
+ description_loc3 TEXT NULL,
+ title_loc4 VARCHAR(200) NULL,
+ description_loc4 TEXT NULL,
+ title_loc5 VARCHAR(200) NULL,
+ description_loc5 TEXT NULL,
+ title_loc6 VARCHAR(200) NULL,
+ description_loc6 TEXT NULL,
+ title_loc7 VARCHAR(200) NULL,
+ description_loc7 TEXT NULL,
+ title_loc8 VARCHAR(200) NULL,
+ description_loc8 TEXT NULL,
+ title_loc9 VARCHAR(200) NULL,
+ description_loc9 TEXT NULL,
+ title_loc10 VARCHAR(200) NULL,
+ description_loc10 TEXT NULL,
+ title_loc11 VARCHAR(200) NULL,
+ description_loc11 TEXT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS locales_battle_pay_entry (
+ id INT UNSIGNED NOT NULL PRIMARY KEY,
+ title_loc1 VARCHAR(200) NULL,
+ description_loc1 TEXT NULL,
+ title_loc2 VARCHAR(200) NULL,
+ description_loc2 TEXT NULL,
+ title_loc3 VARCHAR(200) NULL,
+ description_loc3 TEXT NULL,
+ title_loc4 VARCHAR(200) NULL,
+ description_loc4 TEXT NULL,
+ title_loc5 VARCHAR(200) NULL,
+ description_loc5 TEXT NULL,
+ title_loc6 VARCHAR(200) NULL,
+ description_loc6 TEXT NULL,
+ title_loc7 VARCHAR(200) NULL,
+ description_loc7 TEXT NULL,
+ title_loc8 VARCHAR(200) NULL,
+ description_loc8 TEXT NULL,
+ title_loc9 VARCHAR(200) NULL,
+ description_loc9 TEXT NULL,
+ title_loc10 VARCHAR(200) NULL,
+ description_loc10 TEXT NULL,
+ title_loc11 VARCHAR(200) NULL,
+ description_loc11 TEXT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS locales_battle_pay_group (
+ id INT UNSIGNED NOT NULL PRIMARY KEY,
+ name_loc1 VARCHAR(64) NULL,
+ name_loc2 VARCHAR(64) NULL,
+ name_loc3 VARCHAR(64) NULL,
+ name_loc4 VARCHAR(64) NULL,
+ name_loc5 VARCHAR(64) NULL,
+ name_loc6 VARCHAR(64) NULL,
+ name_loc7 VARCHAR(64) NULL,
+ name_loc8 VARCHAR(64) NULL,
+ name_loc9 VARCHAR(64) NULL,
+ name_loc10 VARCHAR(64) NULL,
+ name_loc11 VARCHAR(64) NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

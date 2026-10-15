@@ -142,6 +142,7 @@ bool MySQLConnection::PrepareStatements()
 
 bool MySQLConnection::Execute(const char* sql)
 {
+    if (m_checkedTransaction && m_checkedFailed && strcmp(sql, "ROLLBACK") != 0) return false;
     if (!m_Mysql)
         return false;
 
@@ -169,6 +170,7 @@ bool MySQLConnection::Execute(const char* sql)
 
 bool MySQLConnection::Execute(PreparedStatement* stmt)
 {
+    if (m_checkedTransaction && m_checkedFailed) return false;
     if (!m_Mysql)
         return false;
 
@@ -223,6 +225,7 @@ bool MySQLConnection::Execute(PreparedStatement* stmt)
 
 bool MySQLConnection::_Query(PreparedStatement* stmt, MYSQL_RES** pResult, uint64* pRowCount, uint32* pFieldCount)
 {
+    if (m_checkedTransaction && m_checkedFailed) return false;
     if (!m_Mysql)
         return false;
 
@@ -299,6 +302,7 @@ ResultSet* MySQLConnection::Query(const char* sql)
 
 bool MySQLConnection::_Query(const char* sql, MYSQL_RES** pResult, MYSQL_FIELD** pFields, uint64* pRowCount, uint32* pFieldCount)
 {
+    if (m_checkedTransaction && m_checkedFailed) return false;
     if (!m_Mysql)
         return false;
 
@@ -473,6 +477,14 @@ PreparedResultSet* MySQLConnection::Query(PreparedStatement* stmt)
 
 bool MySQLConnection::_HandleMySQLErrno(uint32 errNo)
 {
+    if (m_checkedTransaction)
+    {
+        m_checkedFailed = true;
+        m_checkedDisconnected = m_checkedDisconnected || errNo == CR_SERVER_GONE_ERROR || errNo == CR_SERVER_LOST ||
+            errNo == CR_INVALID_CONN_HANDLE || errNo == CR_SERVER_LOST_EXTENDED;
+        // Reconnecting/replaying one statement here would lose the transaction.
+        return false;
+    }
     switch (errNo)
     {
         case CR_SERVER_GONE_ERROR:
@@ -523,4 +535,31 @@ bool MySQLConnection::_HandleMySQLErrno(uint32 errNo)
             SF_LOG_ERROR("sql.sql", "Unhandled MySQL errno %u. Unexpected behaviour possible.", errNo);
             return false;
     }
+}
+
+bool MySQLConnection::BeginCheckedTransaction()
+{
+    if (!Execute("START TRANSACTION")) return false;
+    m_checkedTransaction = true;
+    m_checkedFailed = m_checkedDisconnected = false;
+    return true;
+}
+
+int MySQLConnection::EndCheckedTransaction(bool commit)
+{
+    int result = 1;
+    if (commit && !m_checkedFailed)
+        result = Execute("COMMIT") ? 0 : 2;
+    else if (m_checkedDisconnected)
+        result = 2;
+    if (result != 0 && !m_checkedDisconnected) Execute("ROLLBACK");
+    m_checkedTransaction = false;
+    return result;
+}
+
+std::string MySQLConnection::QuoteString(std::string const& value)
+{
+    std::string escaped(value.size() * 2 + 1, '\0');
+    escaped.resize(mysql_real_escape_string(m_Mysql, &escaped[0], value.data(), static_cast<unsigned long>(value.size())));
+    return "'" + escaped + "'";
 }
