@@ -12,6 +12,8 @@
 #include "EventProcessor.h"
 
 #include <deque>
+#include <array>
+#include <vector>
 
 //this container can't be deque, because deque doesn't like removing the last element - if you remove it, it invalidates next iterator and crash appears
 typedef std::list<Battleground*> BGFreeSlotQueueContainer;
@@ -108,6 +110,13 @@ public:
     //one selection pool for horde, other one for alliance
     SelectionPool m_SelectionPools[BG_TEAMS_COUNT];
     uint32 GetPlayersInQueue(TeamId id);
+    struct ArenaQueueTeam
+    {
+        std::vector<GroupQueueInfo*> Groups;
+        uint32 Rating = 0;
+        uint32 MatchmakerRating = 0;
+    };
+    bool InviteArenaTeams(std::array<ArenaQueueTeam, BG_TEAMS_COUNT> const& teams, Battleground* arena);
     bool InviteArenaPair(GroupQueueInfo* first, GroupQueueInfo* second, Battleground* arena);
 
 private:

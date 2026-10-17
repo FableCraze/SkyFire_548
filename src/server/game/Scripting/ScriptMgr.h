@@ -494,6 +494,17 @@ public:
     virtual Battleground* GetBattleground() const = 0;
 };
 
+struct RatedBattlefieldStats
+{
+    uint32 SeasonWins = 0;
+    uint32 SeasonGames = 0;
+    uint32 Rating = 0;
+    uint32 WeekWins = 0;
+    uint32 WeekBest = 0;
+    uint32 WeekGames = 0;
+    uint32 SeasonBest = 0;
+};
+
 // Optional PvP extensions. Unhandled selection always uses the native queue logic.
 class PvPScript : public ScriptObject
 {
@@ -501,6 +512,9 @@ protected:
     explicit PvPScript(char const* name);
 public:
     bool IsDatabaseBound() const override { return false; }
+    // Return true only when the script handles this native arena signup or statistics slot.
+    virtual bool HandleArenaJoin(Player*, uint8) { return false; }
+    virtual bool GetRatedBattlefieldStats(Player*, uint8, RatedBattlefieldStats&) { return false; }
     virtual bool UpdateArenaQueue(BattlegroundQueue*, BattlegroundTypeId, uint8, uint8, bool) { return false; }
     virtual bool CanEnterArena(Player*, Battleground*) { return true; }
     virtual void OnArenaQueueRemoved(BattlegroundQueue*, uint64, GroupQueueInfo const&, bool) { }
@@ -943,6 +957,8 @@ public: /* Initialization */
     /* BattlegroundScript */
     Battleground* CreateBattleground(BattlegroundTypeId typeId);
 
+    bool HandleArenaJoin(Player*, uint8) const;
+    bool GetRatedBattlefieldStats(Player*, uint8, RatedBattlefieldStats&) const;
     bool UpdateArenaQueue(BattlegroundQueue*, BattlegroundTypeId, uint8, uint8, bool) const;
     bool CanEnterArena(Player*, Battleground*) const;
     void OnArenaQueueRemoved(BattlegroundQueue*, uint64, GroupQueueInfo const&, bool) const;

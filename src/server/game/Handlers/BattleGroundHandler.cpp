@@ -650,6 +650,9 @@ void WorldSession::HandleBattlemasterJoinArena(WorldPacket& recvData)
 
     recvData >> arenaslot;
 
+    if (arenaslot >= 3)
+        return;
+
     // ignore if we already in BG or BG queue
     if (_player->InBattleground())
         return;
@@ -677,6 +680,9 @@ void WorldSession::HandleBattlemasterJoinArena(WorldPacket& recvData)
     BattlegroundQueueTypeId bgQueueTypeId = BattlegroundMgr::BGQueueTypeId(bgTypeId, arenatype);
     PvPDifficultyEntry const* bracketEntry = GetBattlegroundBracketByLevel(bg->GetMapId(), _player->getLevel());
     if (!bracketEntry)
+        return;
+
+    if (sScriptMgr->HandleArenaJoin(_player, arenatype))
         return;
 
     GroupJoinBattlegroundResult err = GroupJoinBattlegroundResult::ERR_BATTLEGROUND_NONE;

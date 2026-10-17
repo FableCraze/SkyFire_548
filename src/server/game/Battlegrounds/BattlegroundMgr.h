@@ -93,9 +93,10 @@ public:
     {
         uint8 ArenaType;
         uint32 TeamSize;
+        uint8 ClientArenaType;
         std::unique_ptr<BattlegroundQueue> Queue;
     };
-    BattlegroundQueueTypeId RegisterArenaQueue(uint8 arenaType, uint32 teamSize);
+    BattlegroundQueueTypeId RegisterArenaQueue(uint8 arenaType, uint32 teamSize, uint8 clientArenaType = 0);
     bool IsCustomArena(uint8 arenaType) const;
     BattlegroundQueue& GetBattlegroundQueue(BattlegroundQueueTypeId bgQueueTypeId);
     bool LeaveQueue(Player* player, BattlegroundQueueTypeId queueId);

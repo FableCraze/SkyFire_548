@@ -14,6 +14,7 @@
 #include "BattlefieldMgr.h"
 #include "Opcodes.h"
 #include "Player.h"
+#include "ScriptMgr.h"
 
 //This send to player windows for invite player to join the war
 //Param1:(guid) the guid of Bf
@@ -234,20 +235,21 @@ void WorldSession::HandleBfExitRequest(WorldPacket& recvData)
         bf->AskToLeaveQueue(_player);
 }
 
-void WorldSession::HandleBattlefieldRatedInfoRequest(WorldPacket& recvData)
+void WorldSession::HandleBattlefieldRatedInfoRequest(WorldPacket& /*recvData*/)
 {
     WorldPacket data(SMSG_BATTLEFIELD_RATED_INFO, 4 * (8 * 4));
     for (uint8 i = 0; i < 4; i++)
     {
-        //TODO: PLAYER_FIELD_PVP_INFO, Updatefield Data 8*3 = size 24
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
+        RatedBattlefieldStats stats;
+        sScriptMgr->GetRatedBattlefieldStats(_player, i, stats);
+        data << uint32(0); // Unknown field; retain the native value.
+        data << stats.SeasonWins;
+        data << stats.SeasonGames;
+        data << stats.Rating;
+        data << stats.WeekWins;
+        data << stats.WeekBest;
+        data << stats.WeekGames;
+        data << stats.SeasonBest;
     }
     SendPacket(&data);
 }

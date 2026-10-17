@@ -142,6 +142,12 @@ void BattlegroundMgr::Update(uint32 diff)
 
 void BattlegroundMgr::BuildBattlegroundStatusPacket(WorldPacket* data, Battleground* bg, Player* player, uint8 QueueSlot, uint8 StatusID, uint32 Time1, uint32 Time2, uint8 arenatype, int8 rated)
 {
+    for (auto const& entry : m_CustomArenaQueues)
+        if (entry.second.ArenaType == arenatype && entry.second.ClientArenaType)
+        {
+            arenatype = entry.second.ClientArenaType;
+            break;
+        }
     ObjectGuid playerGuid = player->GetGUID();
     ObjectGuid bgGuid;
 
@@ -1321,7 +1327,7 @@ uint8 BattlegroundMgr::BGArenaType(BattlegroundQueueTypeId bgQueueTypeId)
     }
 }
 
-BattlegroundQueueTypeId BattlegroundMgr::RegisterArenaQueue(uint8 arenaType, uint32 teamSize)
+BattlegroundQueueTypeId BattlegroundMgr::RegisterArenaQueue(uint8 arenaType, uint32 teamSize, uint8 clientArenaType)
 {
     if (!arenaType || !teamSize || arenaType == ARENA_TYPE_2v2 || arenaType == ARENA_TYPE_3v3 || arenaType == ARENA_TYPE_5v5)
         return BATTLEGROUND_QUEUE_NONE;
@@ -1329,7 +1335,7 @@ BattlegroundQueueTypeId BattlegroundMgr::RegisterArenaQueue(uint8 arenaType, uin
         if (entry.second.ArenaType == arenaType)
             return BATTLEGROUND_QUEUE_NONE;
     auto id = BattlegroundQueueTypeId(MAX_BATTLEGROUND_QUEUE_TYPES + m_CustomArenaQueues.size());
-    CustomArenaQueue queue { arenaType, teamSize, std::unique_ptr<BattlegroundQueue>(new BattlegroundQueue) };
+    CustomArenaQueue queue { arenaType, teamSize, clientArenaType, std::unique_ptr<BattlegroundQueue>(new BattlegroundQueue) };
     m_CustomArenaQueues.emplace(id, std::move(queue));
     return id;
 }

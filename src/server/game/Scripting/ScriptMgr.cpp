@@ -1583,6 +1583,28 @@ PvPScript::PvPScript(char const* name) : ScriptObject(name)
     ScriptRegistry<PvPScript>::AddScript(this);
 }
 
+bool ScriptMgr::HandleArenaJoin(Player* player, uint8 arenaType) const
+{
+    FOR_SCRIPTS_RET(PvPScript, itr, end, false)
+        if (itr->second->HandleArenaJoin(player, arenaType))
+            return true;
+    return false;
+}
+
+bool ScriptMgr::GetRatedBattlefieldStats(Player* player, uint8 slot, RatedBattlefieldStats& stats) const
+{
+    FOR_SCRIPTS_RET(PvPScript, itr, end, false)
+    {
+        RatedBattlefieldStats replacement;
+        if (itr->second->GetRatedBattlefieldStats(player, slot, replacement))
+        {
+            stats = replacement;
+            return true;
+        }
+    }
+    return false;
+}
+
 bool ScriptMgr::UpdateArenaQueue(BattlegroundQueue* q, BattlegroundTypeId type, uint8 bracket, uint8 arena, bool rated) const
 {
     FOR_SCRIPTS_RET(PvPScript, itr, end, false)

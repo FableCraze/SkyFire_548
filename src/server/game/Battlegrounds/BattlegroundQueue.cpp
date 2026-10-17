@@ -7,6 +7,7 @@
 #include "ArenaTeamMgr.h"
 #include "BattlegroundMgr.h"
 #include "BattlegroundQueue.h"
+#include <set>
 #include "ScriptMgr.h"
 #include "Chat.h"
 #include "Group.h"
@@ -413,29 +414,84 @@ uint32 BattlegroundQueue::GetPlayersInQueue(TeamId id)
 
 bool BattlegroundQueue::InviteArenaPair(GroupQueueInfo* first, GroupQueueInfo* second, Battleground* arena)
 {
-    if (!first || !second || first == second || first->IsInvitedToBGInstanceGUID || second->IsInvitedToBGInstanceGUID)
+    if (!first || !second)
         return false;
-    uint8 bracket = uint8(arena->GetBracketId());
+    std::array<ArenaQueueTeam, BG_TEAMS_COUNT> teams;
     GroupQueueInfo* groups[] = { first, second };
     for (uint32 side = 0; side < BG_TEAMS_COUNT; ++side)
     {
-        GroupQueueInfo* group = groups[side];
-        uint32 target = side + (group->IsRated ? 0 : BG_TEAMS_COUNT);
-        for (uint32 bucket = 0; bucket < BG_QUEUE_GROUP_TYPES_COUNT; ++bucket)
+        teams[side].Groups.push_back(groups[side]);
+        teams[side].Rating = groups[side]->ArenaTeamRating;
+        teams[side].MatchmakerRating = groups[side]->ArenaMatchmakerRating;
+    }
+    return InviteArenaTeams(teams, arena);
+}
+
+bool BattlegroundQueue::InviteArenaTeams(std::array<ArenaQueueTeam, BG_TEAMS_COUNT> const& teams, Battleground* arena)
+{
+    if (!arena || !arena->isArena() || uint8(arena->GetBracketId()) >= MAX_BATTLEGROUND_BRACKETS)
+        return false;
+
+    uint8 bracket = uint8(arena->GetBracketId());
+    BattlegroundQueueTypeId queueId = BattlegroundMgr::BGQueueTypeId(BattlegroundTypeId::BATTLEGROUND_AA, arena->GetArenaType());
+    std::set<GroupQueueInfo*> selectedGroups;
+    std::set<uint64> selectedPlayers;
+    // Validate the complete selection before moving a group or sending any invite.
+    for (auto const& team : teams)
+    {
+        uint32 count = 0;
+        for (GroupQueueInfo* group : team.Groups)
         {
-            auto& source = m_QueuedGroups[bracket][bucket];
-            auto itr = std::find(source.begin(), source.end(), group);
-            if (itr != source.end())
+            if (!group || !selectedGroups.insert(group).second || group->IsInvitedToBGInstanceGUID ||
+                group->Players.empty() || group->BgTypeId != BattlegroundTypeId::BATTLEGROUND_AA ||
+                group->ArenaType != arena->GetArenaType() || group->IsRated != arena->isRated())
+                return false;
+            uint32 occurrences = 0;
+            for (auto const& bucket : m_QueuedGroups[bracket])
+                occurrences += uint32(std::count(bucket.begin(), bucket.end(), group));
+            if (occurrences != 1)
+                return false;
+            for (auto const& member : group->Players)
             {
-                source.erase(itr);
-                break;
+                Player* player = ObjectAccessor::FindPlayer(member.first);
+                auto queued = m_QueuedPlayers.find(member.first);
+                if (!player || !player->IsInWorld() || player->InBattleground() ||
+                    !selectedPlayers.insert(member.first).second || queued == m_QueuedPlayers.end() ||
+                    queued->second.GroupInfo != group || member.second != &queued->second ||
+                    !player->InBattlegroundQueueForBattlegroundQueueType(queueId) ||
+                    player->IsInvitedForBattlegroundQueueType(queueId))
+                    return false;
+                PvPDifficultyEntry const* entry = GetBattlegroundBracketByLevel(arena->GetMapId(), player->getLevel());
+                if (!entry || entry->GetBracketId() != arena->GetBracketId())
+                    return false;
             }
+            count += uint32(group->Players.size());
         }
-        m_QueuedGroups[bracket][target].push_back(group);
-        group->OpponentsTeamRating = groups[1 - side]->ArenaTeamRating;
-        group->OpponentsMatchmakerRating = groups[1 - side]->ArenaMatchmakerRating;
-        arena->SetArenaMatchmakerRating(side == TEAM_ALLIANCE ? ALLIANCE : HORDE, group->ArenaMatchmakerRating);
-        InviteGroupToBG(group, arena, side == TEAM_ALLIANCE ? ALLIANCE : HORDE);
+        if (count != arena->GetMaxPlayersPerTeam())
+            return false;
+    }
+
+    for (uint32 side = 0; side < BG_TEAMS_COUNT; ++side)
+    {
+        uint32 faction = side == TEAM_ALLIANCE ? ALLIANCE : HORDE;
+        arena->SetArenaMatchmakerRating(faction, teams[side].MatchmakerRating);
+        for (GroupQueueInfo* group : teams[side].Groups)
+        {
+            for (auto& bucket : m_QueuedGroups[bracket])
+            {
+                auto found = std::find(bucket.begin(), bucket.end(), group);
+                if (found != bucket.end())
+                {
+                    bucket.erase(found);
+                    break;
+                }
+            }
+            uint32 target = side + (group->IsRated ? 0 : BG_TEAMS_COUNT);
+            m_QueuedGroups[bracket][target].push_back(group);
+            group->OpponentsTeamRating = teams[1 - side].Rating;
+            group->OpponentsMatchmakerRating = teams[1 - side].MatchmakerRating;
+            InviteGroupToBG(group, arena, faction);
+        }
     }
     arena->StartBattleground();
     return true;
